@@ -49,7 +49,7 @@ namespace Lucene.Net.Support
             foreach (var luceneException in luceneExceptions)
             {
                 var instance = TryInstantiate(luceneException);
-                Assert.That(TypeCanSerialize(instance), string.Format("Unable to serialize {0}", luceneException.Name));
+                Assert.That(TypeCanSerialize(instance), string.Format("Unable to serialize {0}", luceneException.FullName));
             }
         }
 
@@ -75,16 +75,23 @@ namespace Lucene.Net.Support
             return true;
         }
 
-        private object TryInstantiate(Type type)
+        private static object TryInstantiate(Type type)
         {
-            object instance;
+            object instance = null;
             try
             {
                 instance = Activator.CreateInstance(type, new object[] { "A message" });
             }
-            catch (Exception)
+            catch (MissingMethodException)
             {
-                instance = Activator.CreateInstance(type);
+                try
+                {
+                    instance = Activator.CreateInstance(type);
+                }
+                catch (MissingMethodException)
+                {
+                    Assert.Fail("Can't instantiate type {0}, it's missing the necessary constructors.", type.FullName);
+                }
             }
             return instance;
         }
