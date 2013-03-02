@@ -19,7 +19,11 @@
  *
 */
 
+using System;
 using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using Lucene.Net.Store;
 using NUnit.Framework;
@@ -33,17 +37,56 @@ namespace Lucene.Net.Support
         public void NoSuchDirectoryExceptionCanBeDeserialized()
         {
             var exception = new NoSuchDirectoryException("Message text");
-            NoSuchDirectoryException exception2 = null;
+            Assert.That(TypeCanSerialize(exception));
+        }
 
-            var binaryFormatter = new BinaryFormatter();
-            using (var serializationStream = new MemoryStream())
+        [Test]
+        public void AllExceptionsInLuceneNamespaceCanSerialize()
+        {
+            var luceneExceptions = typeof (NoSuchDirectoryException).Assembly.GetTypes()
+                                                                  .Where(t => typeof(Exception).IsAssignableFrom(t));
+
+            foreach (var luceneException in luceneExceptions)
             {
-                binaryFormatter.Serialize(serializationStream, exception);
-                serializationStream.Seek(0, SeekOrigin.Begin);
-                exception2 = (NoSuchDirectoryException) binaryFormatter.Deserialize(serializationStream);
+                var instance = TryInstantiate(luceneException);
+                Assert.That(TypeCanSerialize(instance), string.Format("Unable to serialize {0}", luceneException.Name));
+            }
+        }
+
+        private static bool TypeCanSerialize<T>(T exception)
+        {
+            T clone;
+
+            try
+            {
+                var binaryFormatter = new BinaryFormatter();
+                using (var serializationStream = new MemoryStream())
+                {
+                    binaryFormatter.Serialize(serializationStream, exception);
+                    serializationStream.Seek(0, SeekOrigin.Begin);
+                    clone = (T)binaryFormatter.Deserialize(serializationStream);
+                }
+            }
+            catch (SerializationException)
+            {
+                return false;
             }
 
-            Assert.That(exception.Message, Is.EqualTo(exception2.Message));
+            return true;
+        }
+
+        private object TryInstantiate(Type type)
+        {
+            object instance;
+            try
+            {
+                instance = Activator.CreateInstance(type, new object[] { "A message" });
+            }
+            catch (Exception)
+            {
+                instance = Activator.CreateInstance(type);
+            }
+            return instance;
         }
     }
 }
