@@ -253,6 +253,14 @@ namespace Lucene.Net.Index
 			public MergeAbortedException(System.String message):base(message)
 			{
 			}
+
+		    public MergeAbortedException(string message, Exception inner) : base(message, inner)
+		    {
+		    }
+
+            public MergeAbortedException(SerializationInfo info, StreamingContext context) : base(info, context)
+            {
+            }
 		}
 		
 		protected internal IndexWriter writer;
